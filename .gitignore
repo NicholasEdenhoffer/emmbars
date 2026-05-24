@@ -1,0 +1,22 @@
+# R package build artifacts
+*.o
+*.so
+*.dll
+src/*.o
+src/*.so
+*.Rproj.user
+*.Rhistory
+*.RData
+*.Ruserdata
+
+# Installed package files
+/doc/
+/Meta/
+/man/*.Rd.bak
+
+# devtools check artifacts
+.Rcheck/
+
+# Build outputs
+emmbars_*.tar.gz
+emmbars_*.zip
