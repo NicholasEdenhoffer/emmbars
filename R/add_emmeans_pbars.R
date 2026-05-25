@@ -308,6 +308,14 @@ add_emmeans_pbars <- function(
   context_vars <- intersect(names(out), names(data))
   context_vars <- setdiff(context_vars, meta_cols)
 
+  # Exclude common statistical summary columns from context_vars
+  stat_cols <- c(
+    "SE", "df", "lower.CL", "upper.CL", "estimate", "emmean", "t.ratio", "z.ratio",
+    "std.error", "statistic", "p.value", "LCL", "UCL", "as.LCL", "as.UCL",
+    "lower", "upper"
+  )
+  context_vars <- setdiff(context_vars, stat_cols)
+
   out$xmin <- out$group1
   out$xmax <- out$group2
 
