@@ -12,6 +12,7 @@ add_emmeans_pbars(
   dodge_width = 0.75,
   label = c("stars", "p.format", "p.value"),
   hide.ns = TRUE,
+  y_col = NULL,
   ...
 )
 }
@@ -43,6 +44,10 @@ dodged geoms, such as \code{geom_boxplot(aes(fill = group))}. Default is
 
 \item{hide.ns}{Logical. If \code{TRUE} (default), nonsignificant comparisons
 (p >= 0.05) are removed before plotting.}
+
+\item{y_col}{Character. The name of the column in the ggplot data
+containing the group means (y-axis values). If \code{NULL} (default), the
+means column is inferred from the plot's y aesthetic.}
 
 \item{...}{Additional arguments passed to \code{\link[ggpubr:stat_pvalue_manual]{ggpubr::stat_pvalue_manual()}}.}
 }

@@ -41,6 +41,9 @@
 #'   - `"p.value"` for raw p-values
 #' @param hide.ns Logical. If `TRUE` (default), nonsignificant comparisons
 #'   (p >= 0.05) are removed before plotting.
+#' @param y_col Character. The name of the column in the ggplot data
+#'   containing the group means (y-axis values). If `NULL` (default), the
+#'   means column is inferred from the plot's y aesthetic.
 #' @param ... Additional arguments passed to [ggpubr::stat_pvalue_manual()].
 #'
 #' @return A ggplot object with significance brackets added.
@@ -122,6 +125,7 @@ add_emmeans_pbars <- function(
   dodge_width = 0.75,
   label = c("stars", "p.format", "p.value"),
   hide.ns = TRUE,
+  y_col = NULL,
   ...
 ) {
   label <- match.arg(label)
@@ -132,8 +136,8 @@ add_emmeans_pbars <- function(
     stop("The ggplot object must contain data.")
   }
 
-  if (is.null(p$mapping$x) || is.null(p$mapping$y)) {
-    stop("Could not infer x and y aesthetics from the ggplot object.")
+  if (is.null(p$mapping$x) || (is.null(p$mapping$y) && is.null(y_col))) {
+    stop("Could not infer x and y aesthetics from the ggplot object. Specify `y_col` if the y aesthetic is missing or complex.")
   }
 
   clean_label <- function(x) {
@@ -233,11 +237,18 @@ add_emmeans_pbars <- function(
 
   plot_facet_vars <- get_plot_facet_vars(p)
 
-  data$.emm_y  <- eval_tidy(p$mapping$y, data = data)
+  if (is.null(y_col)) {
+    data$.emm_y  <- eval_tidy(p$mapping$y, data = data)
+  } else {
+    if (!y_col %in% names(data)) {
+      stop(sprintf("The specified `y_col` ('%s') was not found in the ggplot data.", y_col))
+    }
+    data$.emm_y <- data[[y_col]]
+  }
   data_for_y   <- data %>% filter(is.finite(.emm_y))
 
   if (nrow(data_for_y) == 0) {
-    stop("No finite y-values were found after evaluating the plot y aesthetic.")
+    stop("No finite y-values were found in the ggplot data column for the y-axis.")
   }
 
   # --- Parse contrast table --------------------------------------------------
@@ -251,7 +262,7 @@ add_emmeans_pbars <- function(
     tidyr::separate(
       contrast,
       into  = c("group1", "group2"),
-      sep   = "\\s+-\\s+",
+      sep   = "\\s+[-/]\\s+",
       remove = FALSE
     ) %>%
     mutate(
@@ -312,7 +323,7 @@ add_emmeans_pbars <- function(
   stat_cols <- c(
     "SE", "df", "lower.CL", "upper.CL", "estimate", "emmean", "t.ratio", "z.ratio",
     "std.error", "statistic", "p.value", "LCL", "UCL", "as.LCL", "as.UCL",
-    "lower", "upper"
+    "lower", "upper", "ratio", "response", "null", "log.ratio"
   )
   context_vars <- setdiff(context_vars, stat_cols)
 
