@@ -420,21 +420,38 @@ add_emmeans_pbars <- function(
 
     out <- out %>%
       left_join(y_lims, by = y_group_vars) %>%
-      group_by(across(all_of(y_group_vars))) %>%
-      mutate(
-        y.position = y_max + y_range * y_offset + (row_number() - 1) * y_range * step.increase
-      ) %>%
-      ungroup()
+      group_by(across(all_of(y_group_vars)))
+
+    if ("upper.CL" %in% names(out)) {
+      out <- out %>%
+        mutate(
+          y.position = if_else(is.na(upper.CL), y_max, upper.CL) + y_range * y_offset + (row_number() - 1) * y_range * step.increase
+        )
+    } else {
+      out <- out %>%
+        mutate(
+          y.position = y_max + y_range * y_offset + (row_number() - 1) * y_range * step.increase
+        )
+    }
+
+    out <- out %>% ungroup()
   } else {
     y_max   <- max(data_for_y$.emm_y, na.rm = TRUE)
     y_min   <- min(data_for_y$.emm_y, na.rm = TRUE)
     y_range <- y_max - y_min
     if (!is.finite(y_range) || y_range <= 0) y_range <- 1
 
-    out <- out %>%
-      mutate(
-        y.position = y_max + y_range * y_offset + (row_number() - 1) * y_range * step.increase
-      )
+    if ("upper.CL" %in% names(out)) {
+      out <- out %>%
+        mutate(
+          y.position = if_else(is.na(upper.CL), y_max, upper.CL) + y_range * y_offset + (row_number() - 1) * y_range * step.increase
+        )
+    } else {
+      out <- out %>%
+        mutate(
+          y.position = y_max + y_range * y_offset + (row_number() - 1) * y_range * step.increase
+        )
+    }
   }
 
   out <- out %>% filter(is.finite(y.position))
