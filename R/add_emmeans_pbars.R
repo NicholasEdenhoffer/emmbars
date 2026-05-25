@@ -44,6 +44,11 @@
 #' @param y_col Character. The name of the column in the ggplot data
 #'   containing the group means (y-axis values). If `NULL` (default), the
 #'   means column is inferred from the plot's y aesthetic.
+#' @param step_height_col Character. The name of the column in the contrasts
+#'   data frame to use as the baseline y-height for each bracket. If `NULL`
+#'   (default), the function checks for `"upper.CL"` in the contrasts data
+#'   frame; if found, it uses that; otherwise, it falls back to the data's
+#'   maximum y-value.
 #' @param ... Additional arguments passed to [ggpubr::stat_pvalue_manual()].
 #'
 #' @return A ggplot object with significance brackets added.
@@ -126,6 +131,7 @@ add_emmeans_pbars <- function(
   label = c("stars", "p.format", "p.value"),
   hide.ns = TRUE,
   y_col = NULL,
+  step_height_col = NULL,
   ...
 ) {
   label <- match.arg(label)
@@ -258,6 +264,16 @@ add_emmeans_pbars <- function(
   if (!"contrast" %in% names(out)) stop("Input must contain a `contrast` column.")
   if (!"p.value"  %in% names(out)) stop("Input must contain a `p.value` column.")
 
+  height_col <- NULL
+  if (!is.null(step_height_col)) {
+    if (!step_height_col %in% names(out)) {
+      stop(sprintf("The specified `step_height_col` ('%s') was not found in the contrasts data frame.", step_height_col))
+    }
+    height_col <- step_height_col
+  } else if ("upper.CL" %in% names(out)) {
+    height_col <- "upper.CL"
+  }
+
   out <- out %>%
     tidyr::separate(
       contrast,
@@ -325,7 +341,7 @@ add_emmeans_pbars <- function(
     "std.error", "statistic", "p.value", "LCL", "UCL", "as.LCL", "as.UCL",
     "lower", "upper", "ratio", "response", "null", "log.ratio"
   )
-  context_vars <- setdiff(context_vars, stat_cols)
+  context_vars <- setdiff(context_vars, c(stat_cols, step_height_col))
 
   out$xmin <- out$group1
   out$xmax <- out$group2
@@ -422,10 +438,10 @@ add_emmeans_pbars <- function(
       left_join(y_lims, by = y_group_vars) %>%
       group_by(across(all_of(y_group_vars)))
 
-    if ("upper.CL" %in% names(out)) {
+    if (!is.null(height_col)) {
       out <- out %>%
         mutate(
-          y.position = if_else(is.na(upper.CL), y_max, upper.CL) + y_range * y_offset + (row_number() - 1) * y_range * step.increase
+          y.position = if_else(is.na(.data[[height_col]]), y_max, .data[[height_col]]) + y_range * y_offset + (row_number() - 1) * y_range * step.increase
         )
     } else {
       out <- out %>%
@@ -441,10 +457,10 @@ add_emmeans_pbars <- function(
     y_range <- y_max - y_min
     if (!is.finite(y_range) || y_range <= 0) y_range <- 1
 
-    if ("upper.CL" %in% names(out)) {
+    if (!is.null(height_col)) {
       out <- out %>%
         mutate(
-          y.position = if_else(is.na(upper.CL), y_max, upper.CL) + y_range * y_offset + (row_number() - 1) * y_range * step.increase
+          y.position = if_else(is.na(.data[[height_col]]), y_max, .data[[height_col]]) + y_range * y_offset + (row_number() - 1) * y_range * step.increase
         )
     } else {
       out <- out %>%
