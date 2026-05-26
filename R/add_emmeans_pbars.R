@@ -44,11 +44,12 @@
 #' @param y_col Character. The name of the column in the ggplot data
 #'   containing the group means (y-axis values). If `NULL` (default), the
 #'   means column is inferred from the plot's y aesthetic.
-#' @param step_height_col Character. The name of the column in the contrasts
-#'   data frame to use as the baseline y-height for each bracket. If `NULL`
-#'   (default), the function checks for `"upper.CL"` in the contrasts data
-#'   frame; if found, it uses that; otherwise, it falls back to the data's
-#'   maximum y-value.
+#' @param y_height_col Character. The name of the column in the ggplot data
+#'   containing the upper limits of the data or confidence intervals (e.g.
+#'   `upper.CL` or `ymax`) to calculate the baseline y-height for each bracket.
+#'   If `NULL` (default), the function auto-detects columns like `"upper.CL"`,
+#'   `"ymax"`, etc., in the ggplot data; if found, it uses that; otherwise, it
+#'   falls back to the data's maximum y-value.
 #' @param ... Additional arguments passed to [ggpubr::stat_pvalue_manual()].
 #'
 #' @return A ggplot object with significance brackets added.
@@ -131,7 +132,7 @@ add_emmeans_pbars <- function(
   label = c("stars", "p.format", "p.value"),
   hide.ns = TRUE,
   y_col = NULL,
-  step_height_col = NULL,
+  y_height_col = NULL,
   ...
 ) {
   label <- match.arg(label)
@@ -251,10 +252,48 @@ add_emmeans_pbars <- function(
     }
     data$.emm_y <- data[[y_col]]
   }
-  data_for_y   <- data %>% filter(is.finite(.emm_y))
+
+  # --- Determine columns in ggplot data for height and low calculations -------
+
+  if (!is.null(y_height_col)) {
+    if (!y_height_col %in% names(data)) {
+      stop(sprintf("The specified `y_height_col` ('%s') was not found in the ggplot data.", y_height_col))
+    }
+    actual_height_col <- y_height_col
+  } else {
+    common_upper_cols <- c("upper.CL", "ymax", "upper", "UCL", "as.UCL")
+    found_cols <- common_upper_cols[common_upper_cols %in% names(data)]
+    if (length(found_cols) > 0) {
+      actual_height_col <- found_cols[1]
+    } else {
+      actual_height_col <- ".emm_y"
+    }
+  }
+
+  actual_low_col <- ".emm_y"
+  if (actual_height_col == "upper.CL" && "lower.CL" %in% names(data)) {
+    actual_low_col <- "lower.CL"
+  } else if (actual_height_col == "ymax" && "ymin" %in% names(data)) {
+    actual_low_col <- "ymin"
+  } else if (actual_height_col == "upper" && "lower" %in% names(data)) {
+    actual_low_col <- "lower"
+  } else if (actual_height_col == "UCL" && "LCL" %in% names(data)) {
+    actual_low_col <- "LCL"
+  } else if (actual_height_col == "as.UCL" && "as.LCL" %in% names(data)) {
+    actual_low_col <- "as.LCL"
+  }
+
+  data_for_y <- data
+  if (actual_height_col != ".emm_y") {
+    data_for_y <- data_for_y %>% filter(is.finite(.data[[actual_height_col]]))
+  }
+  if (actual_low_col != ".emm_y") {
+    data_for_y <- data_for_y %>% filter(is.finite(.data[[actual_low_col]]))
+  }
+  data_for_y <- data_for_y %>% filter(is.finite(.emm_y))
 
   if (nrow(data_for_y) == 0) {
-    stop("No finite y-values were found in the ggplot data column for the y-axis.")
+    stop("No finite y-values were found in the ggplot data column for the y-axis calculation.")
   }
 
   # --- Parse contrast table --------------------------------------------------
@@ -263,16 +302,6 @@ add_emmeans_pbars <- function(
 
   if (!"contrast" %in% names(out)) stop("Input must contain a `contrast` column.")
   if (!"p.value"  %in% names(out)) stop("Input must contain a `p.value` column.")
-
-  height_col <- NULL
-  if (!is.null(step_height_col)) {
-    if (!step_height_col %in% names(out)) {
-      stop(sprintf("The specified `step_height_col` ('%s') was not found in the contrasts data frame.", step_height_col))
-    }
-    height_col <- step_height_col
-  } else if ("upper.CL" %in% names(out)) {
-    height_col <- "upper.CL"
-  }
 
   out <- out %>%
     tidyr::separate(
@@ -341,7 +370,7 @@ add_emmeans_pbars <- function(
     "std.error", "statistic", "p.value", "LCL", "UCL", "as.LCL", "as.UCL",
     "lower", "upper", "ratio", "response", "null", "log.ratio"
   )
-  context_vars <- setdiff(context_vars, c(stat_cols, step_height_col))
+  context_vars <- setdiff(context_vars, stat_cols)
 
   out$xmin <- out$group1
   out$xmax <- out$group2
@@ -425,8 +454,8 @@ add_emmeans_pbars <- function(
     y_lims <- data_for_y %>%
       group_by(across(all_of(y_group_vars))) %>%
       summarise(
-        y_max = max(.emm_y, na.rm = TRUE),
-        y_min = min(.emm_y, na.rm = TRUE),
+        y_max = max(.data[[actual_height_col]], na.rm = TRUE),
+        y_min = min(.data[[actual_low_col]], na.rm = TRUE),
         .groups = "drop"
       ) %>%
       mutate(
@@ -436,38 +465,21 @@ add_emmeans_pbars <- function(
 
     out <- out %>%
       left_join(y_lims, by = y_group_vars) %>%
-      group_by(across(all_of(y_group_vars)))
-
-    if (!is.null(height_col)) {
-      out <- out %>%
-        mutate(
-          y.position = if_else(is.na(.data[[height_col]]), y_max, .data[[height_col]]) + y_range * y_offset + (row_number() - 1) * y_range * step.increase
-        )
-    } else {
-      out <- out %>%
-        mutate(
-          y.position = y_max + y_range * y_offset + (row_number() - 1) * y_range * step.increase
-        )
-    }
-
-    out <- out %>% ungroup()
+      group_by(across(all_of(y_group_vars))) %>%
+      mutate(
+        y.position = y_max + y_range * y_offset + (row_number() - 1) * y_range * step.increase
+      ) %>%
+      ungroup()
   } else {
-    y_max   <- max(data_for_y$.emm_y, na.rm = TRUE)
-    y_min   <- min(data_for_y$.emm_y, na.rm = TRUE)
+    y_max   <- max(data_for_y[[actual_height_col]], na.rm = TRUE)
+    y_min   <- min(data_for_y[[actual_low_col]], na.rm = TRUE)
     y_range <- y_max - y_min
     if (!is.finite(y_range) || y_range <= 0) y_range <- 1
 
-    if (!is.null(height_col)) {
-      out <- out %>%
-        mutate(
-          y.position = if_else(is.na(.data[[height_col]]), y_max, .data[[height_col]]) + y_range * y_offset + (row_number() - 1) * y_range * step.increase
-        )
-    } else {
-      out <- out %>%
-        mutate(
-          y.position = y_max + y_range * y_offset + (row_number() - 1) * y_range * step.increase
-        )
-    }
+    out <- out %>%
+      mutate(
+        y.position = y_max + y_range * y_offset + (row_number() - 1) * y_range * step.increase
+      )
   }
 
   out <- out %>% filter(is.finite(y.position))
