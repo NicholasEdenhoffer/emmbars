@@ -13,6 +13,7 @@ add_emmeans_pbars(
   label = c("stars", "p.format", "p.value"),
   hide.ns = TRUE,
   y_col = NULL,
+  y_height_col = NULL,
   ...
 )
 }
@@ -48,6 +49,13 @@ dodged geoms, such as \code{geom_boxplot(aes(fill = group))}. Default is
 \item{y_col}{Character. The name of the column in the ggplot data
 containing the group means (y-axis values). If \code{NULL} (default), the
 means column is inferred from the plot's y aesthetic.}
+
+\item{y_height_col}{Character. The name of the column in the ggplot data
+containing the upper limits of the data or confidence intervals (e.g.
+\code{upper.CL} or \code{ymax}) to calculate the baseline y-height for each bracket.
+If \code{NULL} (default), the function auto-detects columns like \code{"upper.CL"},
+\code{"ymax"}, etc., in the ggplot data; if found, it uses that; otherwise, it
+falls back to the data's maximum y-value.}
 
 \item{...}{Additional arguments passed to \code{\link[ggpubr:stat_pvalue_manual]{ggpubr::stat_pvalue_manual()}}.}
 }
