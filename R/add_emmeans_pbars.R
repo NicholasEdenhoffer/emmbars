@@ -446,6 +446,13 @@ add_emmeans_pbars <- function(
 
   # --- Compute y positions ---------------------------------------------------
 
+  global_y_max <- max(data_for_y[[actual_height_col]], na.rm = TRUE)
+  global_y_min <- min(data_for_y[[actual_low_col]], na.rm = TRUE)
+  global_y_range <- global_y_max - global_y_min
+  if (!is.finite(global_y_range) || global_y_range <= 0) global_y_range <- 1
+
+  free_y <- isTRUE(p$facet$params$free$y)
+
   y_group_vars <- context_vars[
     context_vars %in% names(data_for_y) & context_vars %in% names(out)
   ]
@@ -459,8 +466,9 @@ add_emmeans_pbars <- function(
         .groups = "drop"
       ) %>%
       mutate(
-        y_range = y_max - y_min,
-        y_range = if_else(is.finite(y_range) & y_range > 0, y_range, 1)
+        y_range_local = y_max - y_min,
+        y_range_local = if_else(is.finite(y_range_local) & y_range_local > 0, y_range_local, 1),
+        y_range = if (free_y) y_range_local else global_y_range
       )
 
     out <- out %>%
