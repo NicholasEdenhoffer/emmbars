@@ -50,6 +50,15 @@
 #'   If `NULL` (default), the function auto-detects columns like `"upper.CL"`,
 #'   `"ymax"`, etc., in the ggplot data; if found, it uses that; otherwise, it
 #'   falls back to the data's maximum y-value.
+#' @param y_position_scope Character. Controls how bracket y positions are
+#'   grouped before stacking. One of:
+#'   - `"context"` keeps the original behavior and stacks brackets separately
+#'     for each emmeans context variable shared with the plot data.
+#'   - `"panel"` stacks brackets separately only within actual ggplot facet
+#'     panels. In non-faceted plots, all brackets share one y stack.
+#'   - `"global"` stacks all brackets together, ignoring context variables and
+#'     facets.
+#'   Default is `"context"` for backward compatibility.
 #' @param ... Additional arguments passed to [ggpubr::stat_pvalue_manual()].
 #'
 #' @return A ggplot object with significance brackets added.
@@ -115,6 +124,9 @@
 #'   ggplot(aes(Cell, Area, fill = Spheroid)) +
 #'   geom_boxplot(position = position_dodge(width = 0.8))
 #' add_emmeans_pbars(p2, emm, dodge_width = 0.8)
+#'
+#' # Stack all brackets together in a non-faceted plot
+#' add_emmeans_pbars(p, emm, y_position_scope = "panel")
 #' }
 #'
 #' @importFrom dplyr %>% mutate filter group_by summarise ungroup left_join
@@ -133,9 +145,11 @@ add_emmeans_pbars <- function(
   hide.ns = TRUE,
   y_col = NULL,
   y_height_col = NULL,
+  y_position_scope = c("context", "panel", "global"),
   ...
 ) {
   label <- match.arg(label)
+  y_position_scope <- match.arg(y_position_scope)
 
   data <- p$data
 
@@ -453,9 +467,16 @@ add_emmeans_pbars <- function(
 
   free_y <- isTRUE(p$facet$params$free$y)
 
-  y_group_vars <- context_vars[
-    context_vars %in% names(data_for_y) & context_vars %in% names(out)
-  ]
+  y_group_vars <- switch(
+    y_position_scope,
+    context = context_vars[
+      context_vars %in% names(data_for_y) & context_vars %in% names(out)
+    ],
+    panel = plot_facet_vars[
+      plot_facet_vars %in% names(data_for_y) & plot_facet_vars %in% names(out)
+    ],
+    global = character(0)
+  )
 
   if (length(y_group_vars) > 0) {
     y_lims <- data_for_y %>%

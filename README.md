@@ -102,6 +102,11 @@ add_emmeans_pbars(p, emm, hide.ns = FALSE)
 # Adjust bracket height and spacing
 add_emmeans_pbars(p, emm, y_offset = 0.10, step.increase = 0.12)
 
+# Stack y positions by context variables (default), facet panel, or globally
+add_emmeans_pbars(p, emm, y_position_scope = "context")
+add_emmeans_pbars(p, emm, y_position_scope = "panel")
+add_emmeans_pbars(p, emm, y_position_scope = "global")
+
 # Match a custom dodge width
 p <- df |>
   ggplot(aes(Cell, Area, fill = Spheroid)) +

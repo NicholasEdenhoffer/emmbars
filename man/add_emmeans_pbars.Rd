@@ -14,6 +14,7 @@ add_emmeans_pbars(
   hide.ns = TRUE,
   y_col = NULL,
   y_height_col = NULL,
+  y_position_scope = c("context", "panel", "global"),
   ...
 )
 }
@@ -56,6 +57,18 @@ containing the upper limits of the data or confidence intervals (e.g.
 If \code{NULL} (default), the function auto-detects columns like \code{"upper.CL"},
 \code{"ymax"}, etc., in the ggplot data; if found, it uses that; otherwise, it
 falls back to the data's maximum y-value.}
+
+\item{y_position_scope}{Character. Controls how bracket y positions are
+grouped before stacking. One of:
+\itemize{
+\item \code{"context"} keeps the original behavior and stacks brackets separately
+for each emmeans context variable shared with the plot data.
+\item \code{"panel"} stacks brackets separately only within actual ggplot facet
+panels. In non-faceted plots, all brackets share one y stack.
+\item \code{"global"} stacks all brackets together, ignoring context variables and
+facets.
+}
+Default is \code{"context"} for backward compatibility.}
 
 \item{...}{Additional arguments passed to \code{\link[ggpubr:stat_pvalue_manual]{ggpubr::stat_pvalue_manual()}}.}
 }
@@ -142,6 +155,9 @@ p2 <- df |>
   ggplot(aes(Cell, Area, fill = Spheroid)) +
   geom_boxplot(position = position_dodge(width = 0.8))
 add_emmeans_pbars(p2, emm, dodge_width = 0.8)
+
+# Stack all brackets together in a non-faceted plot
+add_emmeans_pbars(p, emm, y_position_scope = "panel")
 }
 
 }
