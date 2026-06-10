@@ -131,7 +131,6 @@
 #'
 #' @importFrom dplyr %>% mutate filter group_by summarise ungroup left_join
 #'   distinct across all_of if_else row_number case_when
-#' @importFrom tidyr separate
 #' @importFrom rlang as_name eval_tidy
 #' @importFrom ggpubr stat_pvalue_manual
 #' @export
@@ -189,6 +188,51 @@ add_emmeans_pbars <- function(
 
   all_match_levels <- function(values, levels) {
     all(!is.na(match_to_levels(values, levels)))
+  }
+
+  split_contrast_label <- function(label, candidate_level_sets) {
+    label <- clean_label(label)
+
+    pieces <- strsplit(label, "\\s+[-/]\\s+", perl = TRUE)[[1]]
+    if (length(pieces) == 2 && all(nzchar(trimws(pieces)))) {
+      return(clean_label(pieces))
+    }
+
+    normalize_compact <- function(x) {
+      tolower(gsub("\\s+", "", clean_label(x)))
+    }
+
+    target <- normalize_compact(label)
+    matches <- list()
+
+    for (levels in candidate_level_sets) {
+      levels <- unique(as.character(levels))
+      levels <- levels[!is.na(levels)]
+
+      for (group1 in levels) {
+        for (group2 in levels) {
+          if (identical(group1, group2)) next
+
+          possible_labels <- c(
+            paste0(group1, "/", group2),
+            paste0(group1, "-", group2)
+          )
+
+          if (target %in% normalize_compact(possible_labels)) {
+            matches[[length(matches) + 1L]] <- c(group1, group2)
+          }
+        }
+      }
+    }
+
+    if (length(matches) > 0) {
+      unique_matches <- unique(do.call(rbind, matches))
+      if (nrow(unique_matches) == 1) {
+        return(clean_label(unique_matches[1, ]))
+      }
+    }
+
+    c(label, NA_character_)
   }
 
   get_plot_facet_vars <- function(p) {
@@ -257,6 +301,11 @@ add_emmeans_pbars <- function(
   group_vars <- group_vars[group_vars %in% names(data)]
 
   plot_facet_vars <- get_plot_facet_vars(p)
+  x_levels <- get_levels(data[[x_var]])
+  candidate_level_sets <- c(
+    list(x_levels),
+    lapply(group_vars, function(g) get_levels(data[[g]]))
+  )
 
   if (is.null(y_col)) {
     data$.emm_y  <- eval_tidy(p$mapping$y, data = data)
@@ -317,13 +366,17 @@ add_emmeans_pbars <- function(
   if (!"contrast" %in% names(out)) stop("Input must contain a `contrast` column.")
   if (!"p.value"  %in% names(out)) stop("Input must contain a `p.value` column.")
 
+  contrast_groups <- t(vapply(
+    out$contrast,
+    split_contrast_label,
+    character(2),
+    candidate_level_sets = candidate_level_sets
+  ))
+
+  out$group1 <- contrast_groups[, 1]
+  out$group2 <- contrast_groups[, 2]
+
   out <- out %>%
-    tidyr::separate(
-      contrast,
-      into  = c("group1", "group2"),
-      sep   = "\\s+[-/]\\s+",
-      remove = FALSE
-    ) %>%
     mutate(
       group1   = clean_label(group1),
       group2   = clean_label(group2),
@@ -348,7 +401,6 @@ add_emmeans_pbars <- function(
 
   # --- Determine comparison axis ---------------------------------------------
 
-  x_levels       <- get_levels(data[[x_var]])
   contrast_levels <- unique(c(out$group1, out$group2))
   contrast_is_x  <- all_match_levels(contrast_levels, x_levels)
 

@@ -1,8 +1,7 @@
 Package: emmbars
 Title: Add Emmeans Significance Brackets to ggplot Objects
 Version: 0.1.3
-Authors@R:
-    person(given = "Nicholas",
+Authors@R: person(given = "Nicholas",
            family = "Edenhoffer",
            role = c("aut", "cre"),
            email = "NicholasEdenhoffer@users.noreply.github.com")
@@ -18,11 +17,10 @@ Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
 Imports:
     dplyr (>= 1.0.0),
-    tidyr,
     rlang,
-    ggpubr,
-    ggplot2
+    ggpubr
 Suggests:
+    ggplot2,
     emmeans,
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
