@@ -149,6 +149,7 @@ add_emmeans_pbars <- function(
 ) {
   label <- match.arg(label)
   y_position_scope <- match.arg(y_position_scope)
+  dots <- list(...)
 
   data <- p$data
 
@@ -432,7 +433,8 @@ add_emmeans_pbars <- function(
 
   # Exclude common statistical summary columns from context_vars
   stat_cols <- c(
-    "SE", "df", "lower.CL", "upper.CL", "estimate", "emmean", "t.ratio", "z.ratio",
+    "SE", "df", "lower.CL", "upper.CL", "asymp.LCL", "asymp.UCL",
+    "estimate", "emmean", "odds.ratio", "t.ratio", "z.ratio",
     "std.error", "statistic", "p.value", "LCL", "UCL", "as.LCL", "as.UCL",
     "lower", "upper", "ratio", "response", "null", "log.ratio"
   )
@@ -568,14 +570,39 @@ add_emmeans_pbars <- function(
 
   # --- Add brackets to plot --------------------------------------------------
 
-  p + stat_pvalue_manual(
-    out,
-    label      = "label",
-    xmin       = "xmin",
-    xmax       = "xmax",
-    y.position = "y.position",
-    inherit.aes = FALSE,
-    hide.ns    = FALSE,
-    ...
+  drop_plot_group_color <- function(arg_name) {
+    color_arg <- dots[[arg_name]]
+
+    if (
+      is.character(color_arg) &&
+        length(color_arg) == 1 &&
+        color_arg %in% group_vars &&
+        !color_arg %in% names(out)
+    ) {
+      dots[[arg_name]] <<- NULL
+    }
+  }
+
+  # If the caller supplies color = "<plot grouping variable>", treat that as a
+  # request to use the plot grouping for bracket positioning, not as a literal
+  # bracket color. The grouping has already been inferred from the ggplot object;
+  # passing it through to ggpubr would be interpreted as an invalid literal color
+  # when the annotation table does not have that column.
+  drop_plot_group_color("color")
+  drop_plot_group_color("colour")
+
+  bracket_args <- c(
+    list(
+      data = out,
+      label = "label",
+      xmin = "xmin",
+      xmax = "xmax",
+      y.position = "y.position",
+      inherit.aes = FALSE,
+      hide.ns = FALSE
+    ),
+    dots
   )
+
+  p + do.call(stat_pvalue_manual, bracket_args)
 }

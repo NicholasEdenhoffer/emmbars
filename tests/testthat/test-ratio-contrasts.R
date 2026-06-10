@@ -51,3 +51,72 @@ test_that("ratio contrast labels with odds.ratio columns are parsed", {
   expect_equal(compact_annotation$xmin, rep(1, 5))
   expect_equal(compact_annotation$xmax, rep(2, 5))
 })
+
+test_that("odds-ratio asymptotic CI columns are not treated as plot context", {
+  cells <- factor(
+    c("No Stromal Cells", "LX-2", "PT1-NL", "PT1-CLMet", "PT2-AppT"),
+    levels = c("No Stromal Cells", "LX-2", "PT1-NL", "PT1-CLMet", "PT2-AppT")
+  )
+
+  response_df <- data.frame(
+    Proximity = factor(rep(c("Proximal", "Distal"), times = 5), levels = c("Proximal", "Distal")),
+    Cell = factor(rep(cells, each = 2), levels = levels(cells)),
+    prob = c(0.590, 0.208, 0.857, 0.167, 0.971, 0.569, 0.990, 0.575, 0.500, 0.540),
+    SE = c(0.0730, 0.0401, 0.0815, 0.0719, 0.0106, 0.0776, 0.012, 0.070, 0.10, 0.10),
+    df = Inf,
+    asymp.LCL = c(0.4436, 0.1399, 0.6194, 0.0676, 0.9414, 0.4155, 0.950, 0.430, 0.320, 0.360),
+    asymp.UCL = c(0.722, 0.297, 0.957, 0.355, 0.986, 0.711, 0.998, 0.700, 0.680, 0.700)
+  )
+
+  contrasts <- data.frame(
+    contrast = factor(rep("Proximal / Distal", 5)),
+    Cell = cells,
+    odds.ratio = c(5.493, 30.056, 25.542, 73.601, 0.853),
+    SE = c(1.230, 15.200, 5.760, 14.300, 0.375),
+    df = Inf,
+    asymp.LCL = c(3.54, 11.14, 16.42, 50.35, 0.36),
+    asymp.UCL = c(8.52, 81.08, 39.73, 107.58, 2.02),
+    null = 1,
+    z.ratio = c(7.610, 6.722, 14.377, 22.194, -0.362),
+    p.value = c(2.733432e-14, 1.797406e-11, 7.180393e-47, 3.905809e-109, 7.173849e-01)
+  )
+
+  p <- ggplot2::ggplot(response_df, ggplot2::aes(x = Cell, y = prob, color = Proximity)) +
+    ggplot2::geom_pointrange(
+      ggplot2::aes(ymin = asymp.LCL, ymax = asymp.UCL),
+      position = ggplot2::position_dodge(width = 0.3)
+    )
+
+  p2 <- add_emmeans_pbars(
+    p,
+    contrasts,
+    y_offset = 0.1,
+    step.increase = 0.04,
+    dodge_width = 0.3,
+    tip.length = 0.01,
+    y_col = "prob"
+  )
+
+  expect_equal(length(p2$layers), length(p$layers) + 1)
+
+  annotation <- p2$layers[[length(p2$layers)]]$data
+  expect_equal(nrow(annotation), 4)
+  expect_equal(as.character(annotation$group1), rep("Proximal", 4))
+  expect_equal(as.character(annotation$group2), rep("Distal", 4))
+  expect_equal(as.character(annotation$Cell), as.character(cells[1:4]))
+  expect_true(all(is.finite(annotation$y.position)))
+
+  p3 <- add_emmeans_pbars(
+    p,
+    contrasts,
+    y_offset = 0.1,
+    step.increase = 0.04,
+    dodge_width = 0.3,
+    tip.length = 0.01,
+    color = "Proximity",
+    y_col = "prob"
+  )
+
+  expect_equal(length(p3$layers), length(p$layers) + 1)
+  expect_no_error(ggplot2::ggplotGrob(p3))
+})
