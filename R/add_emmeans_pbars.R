@@ -36,7 +36,9 @@
 #'   dodged geoms, such as `geom_boxplot(aes(fill = group))`. Default is
 #'   `0.75`, which matches the default boxplot dodge width.
 #' @param label Character. Label style for the brackets. One of:
-#'   - `"stars"` for significance stars (default)
+#'   - `"stars"` for significance stars (default). Stars follow a 5-tier
+#'     scheme: `****` for p < 0.0001, `***` for p < 0.001, `**` for
+#'     p < 0.01, `*` for p < 0.05, and `ns` for p >= 0.05.
 #'   - `"p.format"` for formatted p-values
 #'   - `"p.value"` for raw p-values
 #' @param hide.ns Logical. If `TRUE` (default), nonsignificant comparisons
@@ -59,6 +61,10 @@
 #'   - `"global"` stacks all brackets together, ignoring context variables and
 #'     facets.
 #'   Default is `"context"` for backward compatibility.
+#' @param label_size Numeric. Font size for the significance label text (e.g.
+#'   the `***` stars or p-value text) drawn on the brackets. If `NULL`
+#'   (default), ggpubr's default label size is used. When set to a numeric
+#'   value, it is passed to [ggpubr::stat_pvalue_manual()] via `size`.
 #' @param ... Additional arguments passed to [ggpubr::stat_pvalue_manual()].
 #'
 #' @return A ggplot object with significance brackets added.
@@ -113,6 +119,13 @@
 #' # Adjust bracket placement
 #' add_emmeans_pbars(p, emm, y_offset = 0.10, step.increase = 0.12)
 #'
+#' # Significance stars use a 5-tier scheme:
+#' #   **** p < 0.0001, *** p < 0.001, ** p < 0.01, * p < 0.05, ns otherwise
+#' add_emmeans_pbars(p, emm, label = "stars")
+#'
+#' # Increase the star / p-value label font size
+#' add_emmeans_pbars(p, emm, label_size = 6)
+#'
 #' # Show formatted p-values instead of stars
 #' add_emmeans_pbars(p, emm, label = "p.format")
 #'
@@ -145,6 +158,7 @@ add_emmeans_pbars <- function(
   y_col = NULL,
   y_height_col = NULL,
   y_position_scope = c("context", "panel", "global"),
+  label_size = NULL,
   ...
 ) {
   label <- match.arg(label)
@@ -382,10 +396,11 @@ add_emmeans_pbars <- function(
       group1   = clean_label(group1),
       group2   = clean_label(group2),
       p.signif = case_when(
-        p.value < 0.001 ~ "***",
-        p.value < 0.01  ~ "**",
-        p.value < 0.05  ~ "*",
-        TRUE            ~ "ns"
+        p.value < 0.0001 ~ "****",
+        p.value < 0.001  ~ "***",
+        p.value < 0.01   ~ "**",
+        p.value < 0.05   ~ "*",
+        TRUE             ~ "ns"
       ),
       p.format = format.pval(p.value, digits = 2, eps = 0.001)
     )
@@ -603,6 +618,10 @@ add_emmeans_pbars <- function(
     ),
     dots
   )
+
+  if (!is.null(label_size) && is.null(bracket_args$size)) {
+    bracket_args$size <- label_size
+  }
 
   p + do.call(stat_pvalue_manual, bracket_args)
 }
