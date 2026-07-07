@@ -14,7 +14,8 @@ add_emmeans_pbars(
   hide.ns = TRUE,
   y_col = NULL,
   y_height_col = NULL,
-  y_position_scope = c("context", "panel", "global"),
+  y_position_scope = c("panel", "context", "global"),
+  label_size = NULL,
   ...
 )
 }
@@ -39,7 +40,9 @@ dodged geoms, such as \code{geom_boxplot(aes(fill = group))}. Default is
 
 \item{label}{Character. Label style for the brackets. One of:
 \itemize{
-\item \code{"stars"} for significance stars (default)
+\item \code{"stars"} for significance stars (default). Stars follow a 5-tier
+scheme: \verb{****} for p < 0.0001, \verb{***} for p < 0.001, \verb{**} for
+p < 0.01, \code{*} for p < 0.05, and \code{ns} for p >= 0.05.
 \item \code{"p.format"} for formatted p-values
 \item \code{"p.value"} for raw p-values
 }}
@@ -61,14 +64,19 @@ falls back to the data's maximum y-value.}
 \item{y_position_scope}{Character. Controls how bracket y positions are
 grouped before stacking. One of:
 \itemize{
-\item \code{"context"} keeps the original behavior and stacks brackets separately
-for each emmeans context variable shared with the plot data.
-\item \code{"panel"} stacks brackets separately only within actual ggplot facet
-panels. In non-faceted plots, all brackets share one y stack.
+\item \code{"panel"} (default) stacks brackets separately only within actual ggplot
+facet panels. In non-faceted plots, all brackets share one y stack.
+\item \code{"context"} stacks brackets separately for each emmeans context variable
+shared with the plot data.
 \item \code{"global"} stacks all brackets together, ignoring context variables and
 facets.
-}
-Default is \code{"context"} for backward compatibility.}
+Default is \code{"panel"}.
+}}
+
+\item{label_size}{Numeric. Font size for the significance label text (e.g.
+the \verb{***} stars or p-value text) drawn on the brackets. If \code{NULL}
+(default), ggpubr's default label size is used. When set to a numeric
+value, it is passed to \code{\link[ggpubr:stat_pvalue_manual]{ggpubr::stat_pvalue_manual()}} via \code{size}.}
 
 \item{...}{Additional arguments passed to \code{\link[ggpubr:stat_pvalue_manual]{ggpubr::stat_pvalue_manual()}}.}
 }
@@ -144,6 +152,13 @@ add_emmeans_pbars(p, emm)
 # Adjust bracket placement
 add_emmeans_pbars(p, emm, y_offset = 0.10, step.increase = 0.12)
 
+# Significance stars use a 5-tier scheme:
+#   **** p < 0.0001, *** p < 0.001, ** p < 0.01, * p < 0.05, ns otherwise
+add_emmeans_pbars(p, emm, label = "stars")
+
+# Increase the star / p-value label font size
+add_emmeans_pbars(p, emm, label_size = 6)
+
 # Show formatted p-values instead of stars
 add_emmeans_pbars(p, emm, label = "p.format")
 
@@ -156,8 +171,8 @@ p2 <- df |>
   geom_boxplot(position = position_dodge(width = 0.8))
 add_emmeans_pbars(p2, emm, dodge_width = 0.8)
 
-# Stack all brackets together in a non-faceted plot
-add_emmeans_pbars(p, emm, y_position_scope = "panel")
+# Stack all brackets together, ignoring context variables and facets
+add_emmeans_pbars(p, emm, y_position_scope = "global")
 }
 
 }

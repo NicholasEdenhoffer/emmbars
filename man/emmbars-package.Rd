@@ -11,5 +11,10 @@ Provides add_emmeans_pbars(), a convenience wrapper that adds statistical signif
 \author{
 \strong{Maintainer}: Nicholas Edenhoffer \email{NicholasEdenhoffer@users.noreply.github.com}
 
+Authors:
+\itemize{
+  \item Nicholas Edenhoffer \email{NicholasEdenhoffer@users.noreply.github.com}
+}
+
 }
 \keyword{internal}
