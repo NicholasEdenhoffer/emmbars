@@ -16,6 +16,7 @@ add_emmeans_pbars(
   y_height_col = NULL,
   y_position_scope = c("panel", "context", "global"),
   label_size = NULL,
+  y_mean = FALSE,
   ...
 )
 }
@@ -77,6 +78,11 @@ Default is \code{"panel"}.
 the \verb{***} stars or p-value text) drawn on the brackets. If \code{NULL}
 (default), ggpubr's default label size is used. When set to a numeric
 value, it is passed to \code{\link[ggpubr:stat_pvalue_manual]{ggpubr::stat_pvalue_manual()}} via \code{size}.}
+
+\item{y_mean}{Logical. If \code{TRUE}, calculate bracket baselines and spacing
+ranges from the mean source y value for each displayed bar. Use this for
+plots made with \code{stat_summary(geom = "bar", fun = mean)}. Defaults to
+\code{FALSE}, which preserves the usual raw-value or upper-limit calculation.}
 
 \item{...}{Additional arguments passed to \code{\link[ggpubr:stat_pvalue_manual]{ggpubr::stat_pvalue_manual()}}.}
 }

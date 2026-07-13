@@ -65,6 +65,10 @@
 #'   the `***` stars or p-value text) drawn on the brackets. If `NULL`
 #'   (default), ggpubr's default label size is used. When set to a numeric
 #'   value, it is passed to [ggpubr::stat_pvalue_manual()] via `size`.
+#' @param y_mean Logical. If `TRUE`, calculate bracket baselines and spacing
+#'   ranges from the mean source y value for each displayed bar. Use this for
+#'   plots made with `stat_summary(geom = "bar", fun = mean)`. Defaults to
+#'   `FALSE`, which preserves the usual raw-value or upper-limit calculation.
 #' @param ... Additional arguments passed to [ggpubr::stat_pvalue_manual()].
 #'
 #' @return A ggplot object with significance brackets added.
@@ -159,10 +163,14 @@ add_emmeans_pbars <- function(
   y_height_col = NULL,
   y_position_scope = c("panel", "context", "global"),
   label_size = NULL,
+  y_mean = FALSE,
   ...
 ) {
   label <- match.arg(label)
   y_position_scope <- match.arg(y_position_scope)
+  if (!is.logical(y_mean) || length(y_mean) != 1L || is.na(y_mean)) {
+    stop("`y_mean` must be TRUE or FALSE.")
+  }
   dots <- list(...)
 
   data <- p$data
@@ -361,14 +369,13 @@ add_emmeans_pbars <- function(
     actual_low_col <- "as.LCL"
   }
 
-  data_for_y <- data
-  if (actual_height_col != ".emm_y") {
+  data_for_y <- data %>% filter(is.finite(.emm_y))
+  if (!y_mean && actual_height_col != ".emm_y") {
     data_for_y <- data_for_y %>% filter(is.finite(.data[[actual_height_col]]))
   }
-  if (actual_low_col != ".emm_y") {
+  if (!y_mean && actual_low_col != ".emm_y") {
     data_for_y <- data_for_y %>% filter(is.finite(.data[[actual_low_col]]))
   }
-  data_for_y <- data_for_y %>% filter(is.finite(.emm_y))
 
   if (nrow(data_for_y) == 0) {
     stop("No finite y-values were found in the ggplot data column for the y-axis calculation.")
@@ -546,6 +553,18 @@ add_emmeans_pbars <- function(
     ],
     global = character(0)
   )
+
+  if (y_mean) {
+    mean_group_vars <- unique(c(x_var, group_vars, plot_facet_vars, y_group_vars))
+    mean_group_vars <- mean_group_vars[mean_group_vars %in% names(data_for_y)]
+
+    data_for_y <- data_for_y %>%
+      group_by(across(all_of(mean_group_vars))) %>%
+      summarise(.emm_y = mean(.emm_y), .groups = "drop")
+
+    actual_height_col <- ".emm_y"
+    actual_low_col <- ".emm_y"
+  }
 
   if (length(y_group_vars) > 0) {
     y_lims <- data_for_y %>%
