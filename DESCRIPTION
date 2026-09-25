@@ -1,6 +1,6 @@
 Package: emmbars
 Title: Add Emmeans Significance Brackets to ggplot Objects
-Version: 0.2.0
+Version: 0.2.1
 Authors@R: person(given = "Nicholas",
            family = "Edenhoffer",
            role = c("aut", "cre"),

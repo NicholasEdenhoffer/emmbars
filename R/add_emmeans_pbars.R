@@ -213,7 +213,54 @@ add_emmeans_pbars <- function(
     all(!is.na(match_to_levels(values, levels)))
   }
 
+  strip_outer_parens <- function(x) {
+    x <- trimws(as.character(x))
+    wrapped <- grepl("^\\(.*\\)$", x)
+    x[wrapped] <- sub("^\\((.*)\\)$", "\\1", x[wrapped])
+    trimws(x)
+  }
+
+  # emmeans wraps any level name containing an operator character in parentheses
+  # (see the `parens` emm_option), so "0-50 µm" arrives as "(0-50 µm)". Splitting
+  # has to respect that nesting, otherwise a hyphen inside a level name is
+  # mistaken for the contrast separator and both halves keep an orphan paren.
+  split_on_outer_separator <- function(label) {
+    chars <- strsplit(label, "", fixed = TRUE)[[1]]
+    depth <- 0L
+    cuts  <- integer(0)
+
+    for (i in seq_along(chars)) {
+      ch <- chars[i]
+      if (ch == "(") {
+        depth <- depth + 1L
+      } else if (ch == ")") {
+        depth <- max(0L, depth - 1L)
+      } else if (depth == 0L && ch %in% c("-", "/") &&
+                 i > 1L && i < length(chars) &&
+                 chars[i - 1L] == " " && chars[i + 1L] == " ") {
+        cuts <- c(cuts, i)
+      }
+    }
+
+    if (length(cuts) != 1L) return(NULL)
+
+    pieces <- c(
+      paste(chars[seq_len(cuts - 1L)], collapse = ""),
+      paste(chars[seq(cuts + 1L, length(chars))], collapse = "")
+    )
+    pieces <- strip_outer_parens(pieces)
+    if (!all(nzchar(pieces))) return(NULL)
+    pieces
+  }
+
   split_contrast_label <- function(label, candidate_level_sets) {
+    normalized <- gsub("\\s+", " ", trimws(gsub("^`|`$", "", as.character(label))))
+
+    pieces <- split_on_outer_separator(normalized)
+    if (!is.null(pieces)) {
+      return(clean_label(pieces))
+    }
+
     label <- clean_label(label)
 
     pieces <- strsplit(label, "\\s+[-/]\\s+", perl = TRUE)[[1]]
